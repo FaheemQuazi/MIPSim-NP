@@ -3,11 +3,40 @@
 #include <stdbool.h>
 #include <string.h>
 
+typedef struct  {
+    unsigned int funct:6;
+    unsigned int shamt:5;
+    unsigned int regd:5;
+    unsigned int regt:5;
+    unsigned int regs:5;
+    unsigned int opcode:6;
+} instr_type_R;
+
+
+typedef struct {
+    unsigned int imm:16;
+    unsigned int regt:5;
+    unsigned int regs:5;
+    unsigned int opcode:6;
+} instr_type_I;
+
+
+union {
+    unsigned int raw;
+    instr_type_R R;
+    instr_type_I I;
+} instr;
+
+// struct instr_type_J {
+//     unsigned int opcode:6;
+//     unsigned int offset:26;
+// } itj;
+
 // CPU components
 int REGISTERS[32];
 int PC;
 int MEMORY[250];
-int CODE[1024];
+unsigned int CODE[1024];
 int CODE_LENGTH = 0;
 
 // decimal to integer conversion
@@ -17,78 +46,80 @@ int fromBinary(const char *s) {
 
 void file_load(char* input_file) {
     char *line = (char *)malloc(sizeof(char) * 48);
-    char dsc1, dsc2;
+    char dsc1, dsc2, dsc3;
     FILE *fin;
     int i1, i2;
+    unsigned int i3;
     fin = fopen(input_file, "r");
 
-    fscanf(fin, "%s", line); // Read the first line from file
-    fscanf(fin, "%c", &dsc1); // Read end of line char
+    fgets(line, 48, fin); // Read the first line from file
 
-    while(strcmp(line, "MEMORY")!=0){
-        // Process REGISTER section        
-        if (strcmp(line, "REGISTERS")!=0) {
+    int j = 0;
+    while(strcmp(line, "MEMORY\r\n")!=0 && j++ < 32) {
+        //Process REGISTER section        
+        if (strcmp(line, "REGISTERS\r\n")!=0) {
             // process line
-            sscanf(line, "%c %d %d %c", &dsc1, &i1, &i2, &dsc2);
+            sscanf(line, "%c%d %d", &dsc1, &i1, &i2);
             REGISTERS[i1] = i2;
         }
-        fscanf(fin, "%s", line); // Read the line from file
-        fscanf(fin, "%c", &dsc1); // Read end of line char
+        fgets(line, 48, fin); // Read the line from file
     }
 
-    while(strcmp(line, "CODE")!=0){
+    while(strcmp(line, "CODE\r\n")!=0){
         // Process MEMORY section
-        if (strcmp(line, "MEMORY")!=0) {
+        if (strcmp(line, "MEMORY\r\n")!=0) {
             // process line
-            sscanf(line, "%d %d %c", &i1, &i2, &dsc1);
+            sscanf(line, "%d %d", &i1, &i2);
             MEMORY[i1 / 4] = i2;
         }
-        fscanf(fin, "%s", line); // Read the line from file
-        fscanf(fin, "%c", &dsc1); // Read end of line char
+        fgets(line, 48, fin); // Read the line from file
     }
 
     while(!feof(fin)) {
         // Process CODE section
-        if (strcmp(line, "CODE")!=0) {
+        if (strcmp(line, "CODE\r\n")!=0) {
             // process line
             CODE[CODE_LENGTH] = fromBinary(line);
             ++CODE_LENGTH;
         }
-        fscanf(fin, "%s", line); // Read the line from file
-        fscanf(fin, "%c", &dsc1); // Read end of line char
+        
+        fgets(line, 48, fin); // Read the line from file
     }
     fclose(fin);
 }
 
 
 
-void cpu(char* output_file) {
-    bool reg_dest;
-    bool branch;
-    bool alu_op;
-    bool mem_write;
-    bool alu_src;
-    bool reg_write;
+void cpu( /* char* output_file */ ) {
 
-    bool SPIN = false;
-    while (!SPIN) {
+    while (PC < CODE_LENGTH) {
+
         // IF
-        int inst = CODE[PC];
+        unsigned int CodeVal = CODE[PC];
+        char InstructType = '0';
         
-        // ID and RF (indentify opcodes: 8 possible)
-        // (inst >> 25) & 0b000000;
-        //I-load word:  100011 
-        //I-store word: 101011
-        //R-addi:       001000
-        //I-BEQ:        000100
-        //I-BNE:        000101
+        // ID (indentify opcodes: 8 possible) 0 R, 2 or 3 is J, and then everything else is I
+        int opcode = (CodeVal >> 26);
+        switch(opcode){
+            case 0: 
+                InstructType = 'R';
+                instr.raw = CodeVal;
+                printf("Opcode: %u\n", instr.R.opcode);
+                break;
+
+            case 2 || 3: 
+                InstructType = 'J';
+                break;
+
+            default: 
+                InstructType = 'I';
+                instr.raw = CodeVal;
+                printf("Opcode: %u\n", instr.I.opcode);
+                break;
+            
+        } 
         
-        //Send to ALU 
-        //R-Add:        000000 funct: 100000        
-        //R-Sub:        000000 funct: 100010        
-        //R-SLT:        000000 funct: 101010
-        
-        
+        // RF
 
         // ALU / EX
 
@@ -97,6 +128,7 @@ void cpu(char* output_file) {
         // WB
 
         // PC++
+        PC++;
     }
 }
 
@@ -109,15 +141,15 @@ int main(int argc, char const *argv[])
     printf("Input File: ");
     scanf("%s", fni);
 
-    printf("Output File: ");
-    scanf("%s", fno);
+    //printf("Output File: ");
+    //scanf("%s", fno);
 
-    printf("Load File\n");
+    printf("Load Program\n");
     file_load(fni);
+    printf("CPU Run\n");
+    cpu();
 
-    for (int i = 0; i < CODE_LENGTH; i++) {
-        printf("%u\n", CODE[i]);
-    }
+    // printf("");
 
     return 0;
 }
