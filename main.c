@@ -5,25 +5,27 @@
  * Class: ECE 5367 @ University of Houston
  * 
  * Description:
- *  This project aims to simulate the operation of a
- *  non-pipelined MIPS processor. It reads a config
- *  file (input.txt) which includes initial conditions
- *  for registers and RAM/Memory, and the instructions
- *  as a binary string. It then outputs the pipline
- *  steps it takes per instruction, and when code
- *  execution completes, the contents of RAM/memory
- *  and registers (output.txt).
+ *  This project aims to simulate the operation of a non-pipelined MIPS processor. It reads a config
+ *  file (input.txt) which includes initial conditions for registers and RAM/Memory, and the instructions
+ *  as a binary string. It then outputs the pipline steps it takes per instruction, and when code
+ *  execution completes, the contents of RAM/memory and registers (output.txt).
  * 
+ * Referencing https://opencores.org/projects/plasma/opcodes
  * Implemented Instructions:
- *  R: ADD, SUB, SLT
- *  I: SW, LW, ADDI, BEQ, BNE
- *  J: J, JAL
+ *  ALU: ADD, ADDI, ADDIU, ADDU, AND, ANDI, LUI, NOR, OR, ORI, SLT, SLTI, SLTIU, SLTU, SUB SUBU, XOR, XORI
+ *  SHIFTER: SLL, SLLV, SRA, SRAV, SRL SRLV
+ *  BRANCH: BEQ, BGEZ, BGEZAL, BGTZ, BLEZ, BLTZ, BLTZAL, BNE, J, JAL, JALR, JR
+ *  MEMORY: LW, SW
+ * Missing Instructions:
+ *  MULTIPLY: all multiply instructions
+ *  BRANCH: BREAK, MFC0, MTC0, SYSCALL
+ *  MEMORY: All others not listed
+ *  
  * 
  * Limitations:
  *  - Can only read proprietary config file format
  *  - Not all RISC/MIPS instructions are implemented
- *  - RAM/Memory stored as ints i.e. cannot pick an 
- *      address that is not a multiple of 4.
+ *  - RAM/Memory stored as ints i.e. cannot pick an address that is not a multiple of 4.
  *  - Code ROM limited to 1024 instructions.
  *  - No write prevention to R0.
  * 
@@ -199,68 +201,215 @@ void cpu(char* output_file) {
             /* Nested Switch to use the instruction type as well as the opcode value of the given code value */
                 switch (instr.R.funct)
                 {
-                    case 0b100000: //ADD
+                    
+                    case 0b100000: //ADD Addition
                         REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] + REGISTERS[instr.R.regt]; // Rd = Rs + Rt
                         wbReg = true; //Enable the write back to register
                         break;
 
-                    case 0b100010: //SUB
+                    case 0b100010: //SUB Subtract
                         REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] - REGISTERS[instr.R.regt]; // Rd = Rs - Rt
                         wbReg = true; //Enable the write back to register
-                        break;               
+                        break;
 
-                    case 0b101010: //SLT 
+                    case 0b100011: //SUBU Unsigned Subtract
+                        REGISTERS[instr.R.regd] = (int)((unsigned int)REGISTERS[instr.R.regs] - (unsigned int)REGISTERS[instr.R.regt]); // Rd = Rs - Rt
+                        wbReg = true; //Enable the write back to register
+                        break;
+                        
+                    case 0b100101: //OR
+                        REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] | REGISTERS[instr.R.regt];
+                        wbReg = true;
+                        break;
+                        
+                    case 0b101010: //SLT Set on Less Than
                         REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] < REGISTERS[instr.R.regt]; // Rd = Rs < Rt
                         wbReg = true; //Enable the write back to register
+                        break;
+
+                    case 0b101011: //SLTU Set on Less Than Unsigned
+                        REGISTERS[instr.R.regd] = (unsigned int)REGISTERS[instr.R.regs] < (unsigned int)REGISTERS[instr.R.regt]; // Rd = Rs < Rt
+                        wbReg = true; //Enable the write back to register
+                        break;
+
+                    case 0b100001: //ADDU Add Unisnged
+                        REGISTERS[instr.R.regd] = (int)((unsigned int)REGISTERS[instr.R.regs] + (unsigned int)REGISTERS[instr.R.regt]);
+                        wbReg = true;
+                        break;
+                        
+                    case 0b100100: //AND And
+                        REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] && REGISTERS[instr.R.regt];
+                        wbReg = true;
+                        break;
+
+                    case 0b100110: //XOR Exclusive OR
+                        REGISTERS[instr.R.regd] = REGISTERS[instr.R.regs] ^ REGISTERS[instr.R.regt];
+                        wbReg = true;
+                        break;
+                        
+                    case 0b100111: //NOR Not Or
+                        REGISTERS[instr.R.regd] = !(REGISTERS[instr.R.regs] | REGISTERS[instr.R.regt]);
+                        wbReg = true;
+                        break;
+
+                    case 0b000000: //SLL Shift Left Logical
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] << REGISTERS[instr.R.funct]);
+                        wbReg = true;
+                        break;
+
+                    case 0b000100: //SLLV Shift Left Logical Variable
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] << REGISTERS[instr.R.regs]);
+                        wbReg = true;
+                        break;
+                        
+                    case 0b000011: //SRA Shift Right Arithmetic 
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] >> REGISTERS[instr.R.funct]);
+                        wbReg = true;
+                        break;
+
+                    case 0b000111: //SRAV Shift Right Arithmetic Variable
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] >> REGISTERS[instr.R.regs]);
+                        wbReg = true;
+                        break;
+                    
+                    case 0b000010: //SRL Shift Right Logical
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] >> REGISTERS[instr.R.funct]);
+                        wbReg = true;
+                        break;
+                
+                    case 0b000110: //SRLV Shift Right Logical Variable
+                        REGISTERS[instr.R.regd] = (REGISTERS[instr.R.regt] >> REGISTERS[instr.R.regs]);
+                        wbReg = true;
+                        break;
+
+                    case 0b001001: //JALR Jump and Link Register 
+                        REGISTERS[31] = PC; //Sets register[31] = to the value of the Program Counter
+                        PC = REGISTERS[instr.R.regs]; // Program counter set to value in Rs
+                        break;
+                        
+                    case 0b001000: //JR Jump Register 
+                        PC = REGISTERS[instr.R.regs]; // Program counter set to value in Rs
                         break;
                 }
                 break;
             case 'I': // I-Type Instruction: Seperated into it's 5 Arithmetic operations 
             /* Nested Switch to use the instruction type as well as the function value of the given code value */
-                switch (instr.R.opcode)
+                switch (instr.I.opcode)
                 {
-                    case 0b101011: //Store Word
+                    case 0b001010: //SLTI Set on Less Than
+                        REGISTERS[instr.I.regt] = REGISTERS[instr.I.regs] < instr.I.imm; // Rd = Rs < Rt
+                        wbReg = true; //Enable the write back to register
+                        break;
+
+                    case 0b001011: //SLTIU Set on Less Than Unsigned
+                        REGISTERS[instr.I.regt] = (unsigned int)REGISTERS[instr.I.regs] < (unsigned int)instr.I.imm; // Rd = Rs < Rt
+                        wbReg = true; //Enable the write back to register
+                        break;
+                    
+                    case 0b001110: //XORI XOR Imm
+                        REGISTERS[instr.I.regt] = REGISTERS[instr.I.regs] ^ instr.I.imm;
+                        wbReg = true;
+                        break;
+                        
+                    case 0b001101: //ORI Or Immediate
+                        REGISTERS[instr.I.regt] = REGISTERS[instr.I.regs] | instr.I.imm;
+                        wbReg = true;
+                        break;
+
+                    case 0b001100: //ANDI And Immediate
+                        REGISTERS[instr.I.regt] = REGISTERS[instr.I.regs] && REGISTERS[instr.I.imm];
+                        wbReg = true;
+                        break;
+                        
+                    case 0b101011: //SW Store Word
                         MEMORY[(REGISTERS[instr.I.regs] + instr.I.imm) / 4] = REGISTERS[instr.I.regt]; // [(Rs + immediate)/4] = Rt
                         rwMem = true; //Enable the Read/Write to memory/ram
                         break; 
 
-                    case 0b100011: //Load Word
+                    case 0b001111: //LUI Load Upper Immediate
+                        REGISTERS[instr.I.regt] = REGISTERS[instr.I.imm] << 16;
+                        wbReg = true;
+
+                    case 0b100011: //LW Load Word
                         REGISTERS[instr.I.regt] = MEMORY[(REGISTERS[instr.I.regs] + instr.I.imm) / 4]; // Rt = [(Rs + immediate)/4]
                         wbReg = true; //Enable the write back to register
                         rwMem = true; //Enable the Read/Write to memory/ram
                         break;
 
-                    case 0b001000: //Add Immediate
+                    case 0b001000: //ADDI Add Immediate
                         REGISTERS[instr.I.regt] = REGISTERS[instr.I.regs] + REGISTERS[instr.I.imm]; // Rt= Rs + immediate
                         wbReg = true;
                         break;
 
-                    case 0b000100: //Branch if Equal
+                    case 0b001001: //ADDIU Add Immediate Unsigned
+                        REGISTERS[instr.I.regt] = (int)((unsigned int)REGISTERS[instr.I.regs] + (unsigned int)REGISTERS[instr.I.imm]); // Rt= Rs + immediate
+                        wbReg = true;
+                        break;
+
+                    case 0b000100: //BEQ Branch if Equal
                         if (REGISTERS[instr.I.regs] == REGISTERS[instr.I.regt]) { // Checks if Rs is equal to Rt for the brench condition
                             PC += instr.I.imm; // If it is equal, then increment the PC by immediate value
                         }
                         break;
 
-                    case 0b000101: //Branch if Not Equal
+                    case 0b000101: //BNE Branch if Not Equal
                         if (REGISTERS[instr.I.regs] != REGISTERS[instr.I.regt]) { // Checks if Rs is not equal to Rt for the brench condition
                             PC += instr.I.imm; // If it is equal, then increment the PC by immediate value
                         }
                         break;
                     
+                    case 0b000111: //BGTZ Branch if greater than zero 
+                        if(REGISTERS[instr.I.regs] > 0){ // Checks if Rs is greater than zero
+                            PC += instr.I.imm; // If it is greater than zero, then increment the PC by the immediate value
+                        }
+                        break;
+                    
+                    case 0b000110: //BLEZ Branch if less than or equal to zero
+                        if(REGISTERS[instr.I.regs] <= 0){
+                            PC += instr.I.imm; // If it is less than or equal to zero, then increment the OC by the immediate value
+                        }
+                        break;
+
+                    case 0b000001: //BGEZ Operations
+                        switch (instr.I.regt) { // Rt field is used to differentiate these instructions
+                            case 0b00001: // BGEZ 
+                                if(REGISTERS[instr.I.regs] >= 0){
+                                    PC = instr.I.imm;
+                                }
+                                break;
+                            case 0b10001: // BGEZAL Branch On >= 0 And Link
+                                if(REGISTERS[instr.I.regs] >= 0){
+                                    REGISTERS[31] = PC;
+                                    PC += instr.I.imm;
+                                }
+                                break;
+                            case 0b00000: // BLEZ Branch On < 0
+                                if(REGISTERS[instr.I.regs] < 0){
+                                    PC += instr.I.imm;
+                                }
+                                break;
+                            case 0b10000: // BLEZAL	Branch On < 0 And Link
+                                if(REGISTERS[instr.I.regs] < 0){
+                                    REGISTERS[31] = PC;
+                                    PC += instr.I.imm;
+                                }
+                                break;
+                        }
                 }
             
                 break;
             case 'J': // J-Type Instruction: Separated into it's 2 Arithmetic operations 
             /* Nested Switch to use the instruction type as well as the opcode value of the given code value */
                 switch (instr.J.opcode) {
-                    case 0b000010: // Jump
+                    case 0b000010: //J Jump
                         PC += instr.J.imm; // Program counter incremented by the immediate of this J-type
                         break;
 
-                    case 0b000011: // Jump and Link
-                        REGISTERS[30] = PC; //Sets register[30] = to the value of the Program Counter
+                    case 0b000011: //JAL Jump and Link
+                        REGISTERS[31] = PC; //Sets register[31] = to the value of the Program Counter
                         PC += instr.J.imm; // Program counter incremented by the immediate of this J-type
                         break;
+                    
                 }
                 break;
         }
